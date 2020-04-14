@@ -239,6 +239,12 @@ response:
     }
 ```
 
+for example:
+
+```shell
+curl -H "Content-Type: application/json" -H "Authorization: Token yours" http://127.0.0.1:8080/dbs
+```
+
 ### /db/tables 获取指定数据库的所有表名
 
 method: POST

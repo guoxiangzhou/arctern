@@ -48,11 +48,11 @@ __all__ = [
     "ST_GeomFromText",
     "ST_AsText",
     "ST_AsGeoJSON",
-    "point_map",
-    "weighted_point_map",
-    "heat_map",
-    "choropleth_map",
-    "icon_viz",
+    "point_map_layer",
+    "weighted_point_map_layer",
+    "heat_map_layer",
+    "choropleth_map_layer",
+    "icon_viz_layer",
     "projection",
     "transform_and_projection",
     "wkt2wkb",
@@ -531,7 +531,7 @@ def ST_SimplifyPreserveTopology(geos, distance_tolerance):
     :type geos: Series(dtype: object)
     :param geos: Geometries in WKB from.
 
-    :type distance_tolerance: double
+    :type distance_tolerance: float
     :param distance_tolerance: The maximum distance between a point on a linestring and a curve.
 
     :rtype: Series(dtype: object)
@@ -971,7 +971,7 @@ def ST_Buffer(geos, distance):
     :type geos: Series(dtype: object)
     :param geos: Geometries in WKB form.
 
-    :type distance: double
+    :type distance: float
     :param distance: The maximum distance of the returned geometry from the given geometry.
 
     :rtype: Series(dtype: object)
@@ -1108,22 +1108,57 @@ def ST_CurveToLine(geos):
     rs = arctern_core_.ST_CurveToLine(arr_geos)
     return rs.to_pandas()
 
-def point_map(vega, points):
+def point_map_layer(vega, points, transform=True):
     import pyarrow as pa
-    array_points = pa.array(points, type='binary')
+    geos = pa.array(points, type='binary')
+
+    if transform:
+        bounding_box = vega.bounding_box()
+        top_left = 'POINT (' + str(bounding_box[0]) + ' ' + str(bounding_box[3]) + ')'
+        bottom_right = 'POINT (' + str(bounding_box[2]) + ' ' + str(bounding_box[1]) + ')'
+        height = vega.height()
+        width = vega.width()
+        coor = vega.coor()
+        src = bytes(coor, encoding="utf8")
+        dst = bytes('EPSG:3857', encoding="utf8")
+        bounding_box_min = bytes(top_left, encoding="utf8")
+        bounding_box_max = bytes(bottom_right, encoding="utf8")
+        if coor != 'EPSG:3857':
+            geos = arctern_core_.transform_and_projection(geos, src, dst, bounding_box_max, bounding_box_min, height, width)
+        else:
+            geos = arctern_core_.projection(geos, bounding_box_max, bounding_box_min, height, width)
+
     vega_string = vega.build().encode('utf-8')
-    rs = arctern_core_.point_map(vega_string, array_points)
+    rs = arctern_core_.point_map(vega_string, geos)
     return base64.b64encode(rs.buffers()[1].to_pybytes())
 
-def weighted_point_map(vega, points, **kwargs):
+# pylint: disable=too-many-branches
+def weighted_point_map_layer(vega, points, transform=True, **kwargs):
     import pyarrow as pa
     color_weights = kwargs.get('color_weights', None)
     size_weights = kwargs.get('size_weights', None)
     vega_string = vega.build().encode('utf-8')
 
-    array_points = pa.array(points, type='binary')
+    geos = pa.array(points, type='binary')
+
+    if transform:
+        bounding_box = vega.bounding_box()
+        top_left = 'POINT (' + str(bounding_box[0]) + ' ' + str(bounding_box[3]) + ')'
+        bottom_right = 'POINT (' + str(bounding_box[2]) + ' ' + str(bounding_box[1]) + ')'
+        height = vega.height()
+        width = vega.width()
+        coor = vega.coor()
+        src = bytes(coor, encoding="utf8")
+        dst = bytes('EPSG:3857', encoding="utf8")
+        bounding_box_min = bytes(top_left, encoding="utf8")
+        bounding_box_max = bytes(bottom_right, encoding="utf8")
+        if coor != 'EPSG:3857':
+            geos = arctern_core_.transform_and_projection(geos, src, dst, bounding_box_max, bounding_box_min, height, width)
+        else:
+            geos = arctern_core_.projection(geos, bounding_box_max, bounding_box_min, height, width)
+
     if (color_weights is None and size_weights is None):
-        rs = arctern_core_.weighted_point_map(vega_string, array_points)
+        rs = arctern_core_.weighted_point_map(vega_string, geos)
     elif (color_weights is not None and size_weights is not None):
         if color_weights.dtypes == 'float64':
             arr_c = pa.array(color_weights, type='double')
@@ -1134,25 +1169,42 @@ def weighted_point_map(vega, points, **kwargs):
             arr_s = pa.array(size_weights, type='double')
         else:
             arr_s = pa.array(size_weights, type='int64')
-        rs = arctern_core_.weighted_color_size_point_map(vega_string, array_points, arr_c, arr_s)
+        rs = arctern_core_.weighted_color_size_point_map(vega_string, geos, arr_c, arr_s)
     elif (color_weights is None and size_weights is not None):
         if size_weights.dtypes == 'float64':
             arr_s = pa.array(size_weights, type='double')
         else:
             arr_s = pa.array(size_weights, type='int64')
-        rs = arctern_core_.weighted_size_point_map(vega_string, array_points, arr_s)
+        rs = arctern_core_.weighted_size_point_map(vega_string, geos, arr_s)
     else:
         if color_weights.dtypes == 'float64':
             arr_c = pa.array(color_weights, type='double')
         else:
             arr_c = pa.array(color_weights, type='int64')
-        rs = arctern_core_.weighted_color_point_map(vega_string, array_points, arr_c)
+        rs = arctern_core_.weighted_color_point_map(vega_string, geos, arr_c)
 
     return base64.b64encode(rs.buffers()[1].to_pybytes())
 
-def heat_map(vega, points, weights):
+def heat_map_layer(vega, points, weights, transform=True):
     import pyarrow as pa
-    array_points = pa.array(points, type='binary')
+    geos = pa.array(points, type='binary')
+
+    if transform:
+        bounding_box = vega.bounding_box()
+        top_left = 'POINT (' + str(bounding_box[0]) + ' ' + str(bounding_box[3]) + ')'
+        bottom_right = 'POINT (' + str(bounding_box[2]) + ' ' + str(bounding_box[1]) + ')'
+        height = vega.height()
+        width = vega.width()
+        coor = vega.coor()
+        src = bytes(coor, encoding="utf8")
+        dst = bytes('EPSG:3857', encoding="utf8")
+        bounding_box_min = bytes(top_left, encoding="utf8")
+        bounding_box_max = bytes(bottom_right, encoding="utf8")
+        if coor != 'EPSG:3857':
+            geos = arctern_core_.transform_and_projection(geos, src, dst, bounding_box_max, bounding_box_min, height, width)
+        else:
+            geos = arctern_core_.projection(geos, bounding_box_max, bounding_box_min, height, width)
+
     vega_string = vega.build().encode('utf-8')
 
     if weights.dtypes == 'float64':
@@ -1160,44 +1212,78 @@ def heat_map(vega, points, weights):
     else:
         arr_c = pa.array(weights, type='int64')
 
-    rs = arctern_core_.heat_map(vega_string, array_points, arr_c)
+    rs = arctern_core_.heat_map(vega_string, geos, arr_c)
     return base64.b64encode(rs.buffers()[1].to_pybytes())
 
-def choropleth_map(vega, region_boundaries, weights):
+def choropleth_map_layer(vega, region_boundaries, weights, transform=True):
     import pyarrow as pa
-    arr_wkb = pa.array(region_boundaries, type='binary')
+    geos = pa.array(region_boundaries, type='binary')
+
+    if transform:
+        bounding_box = vega.bounding_box()
+        top_left = 'POINT (' + str(bounding_box[0]) + ' ' + str(bounding_box[3]) + ')'
+        bottom_right = 'POINT (' + str(bounding_box[2]) + ' ' + str(bounding_box[1]) + ')'
+        height = vega.height()
+        width = vega.width()
+        coor = vega.coor()
+        src = bytes(coor, encoding="utf8")
+        dst = bytes('EPSG:3857', encoding="utf8")
+        bounding_box_min = bytes(top_left, encoding="utf8")
+        bounding_box_max = bytes(bottom_right, encoding="utf8")
+        if coor != 'EPSG:3857':
+            geos = arctern_core_.transform_and_projection(geos, src, dst, bounding_box_max, bounding_box_min, height, width)
+        else:
+            geos = arctern_core_.projection(geos, bounding_box_max, bounding_box_min, height, width)
+
     vega_string = vega.build().encode('utf-8')
 
     if weights.dtypes == 'float64':
         arr_c = pa.array(weights, type='double')
     else:
         arr_c = pa.array(weights, type='int64')
-    rs = arctern_core_.choropleth_map(vega_string, arr_wkb, arr_c)
+    rs = arctern_core_.choropleth_map(vega_string, geos, arr_c)
     return base64.b64encode(rs.buffers()[1].to_pybytes())
 
-def icon_viz(vega, points):
+def icon_viz_layer(vega, points, transform=True):
     import pyarrow as pa
-    array_points = pa.array(points, type='binary')
+    geos = pa.array(points, type='binary')
+
+    if transform:
+        bounding_box = vega.bounding_box()
+        top_left = 'POINT (' + str(bounding_box[0]) + ' ' + str(bounding_box[3]) + ')'
+        bottom_right = 'POINT (' + str(bounding_box[2]) + ' ' + str(bounding_box[1]) + ')'
+        height = vega.height()
+        width = vega.width()
+        coor = vega.coor()
+        src = bytes(coor, encoding="utf8")
+        dst = bytes('EPSG:3857', encoding="utf8")
+        bounding_box_min = bytes(top_left, encoding="utf8")
+        bounding_box_max = bytes(bottom_right, encoding="utf8")
+        if coor != 'EPSG:3857':
+            geos = arctern_core_.transform_and_projection(geos, src, dst, bounding_box_max, bounding_box_min, height, width)
+        else:
+            geos = arctern_core_.projection(geos, bounding_box_max, bounding_box_min, height, width)
+
     vega_string = vega.build().encode('utf-8')
-    rs = arctern_core_.icon_viz(vega_string, array_points)
+    rs = arctern_core_.icon_viz(vega_string, geos)
     return base64.b64encode(rs.buffers()[1].to_pybytes())
 
-def projection(geos, bottom_geo2, top_geo1, height, width):
+def projection(geos, bottom_right, top_left, height, width):
     import pyarrow as pa
     arr_geos = pa.array(geos, type='binary')
-    bounding_box_min = bytes(bottom_geo2, encoding="utf8")
-    bounding_box_max = bytes(top_geo1, encoding="utf8")
-    rs = arctern_core_.projection(arr_geos, bounding_box_min, bounding_box_max, height, width)
+    bounding_box_max = bytes(bottom_right, encoding="utf8")
+    bounding_box_min = bytes(top_left, encoding="utf8")
+    rs = arctern_core_.projection(arr_geos, bounding_box_max, bounding_box_min, height, width)
     return rs.to_pandas()
 
-def transform_and_projection(geos, src_rs, dst_rs, bottom_geo2, top_geo1, height, width):
+def transform_and_projection(geos, src_rs, dst_rs, bottom_right, top_left, height, width):
     import pyarrow as pa
     arr_geos = pa.array(geos, type='binary')
     src = bytes(src_rs, encoding="utf8")
     dst = bytes(dst_rs, encoding="utf8")
-    bounding_box_min = bytes(bottom_geo2, encoding="utf8")
-    bounding_box_max = bytes(top_geo1, encoding="utf8")
-    rs = arctern_core_.transform_and_projection(arr_geos, src, dst, bounding_box_min, bounding_box_max, height, width)
+    bounding_box_max = bytes(bottom_right, encoding="utf8")
+    bounding_box_min = bytes(top_left, encoding="utf8")
+    rs = arctern_core_.transform_and_projection(arr_geos, src, dst, bounding_box_max, bounding_box_min, height, width)
     return rs.to_pandas()
 
 def wkt2wkb(arr_wkt):

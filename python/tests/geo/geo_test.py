@@ -358,6 +358,14 @@ def test_ST_Within():
     assert rst[2] == 1
     assert rst[3] == 0
 
+    rst = arctern.ST_Within(arctern.ST_GeomFromText(data1),
+                            arctern.ST_GeomFromText("POLYGON((0 0,0 8,8 8,8 0,0 0))"))
+    assert len(rst) == 4
+    assert rst[0] == 1
+    assert rst[1] == 0
+    assert rst[2] == 1
+    assert rst[3] == 0
+
     rst = arctern.ST_Within(arctern.ST_GeomFromText("POLYGON((0 0,0 8,8 8,8 0,0 0))")[0],
                             arctern.ST_GeomFromText(data1))
     assert len(rst) == 4
@@ -365,6 +373,11 @@ def test_ST_Within():
     assert rst[1] == 0
     assert rst[2] == 0
     assert rst[3] == 0
+
+    rst = arctern.ST_Within(arctern.ST_GeomFromText("POLYGON((0 0,0 8,8 8,8 0,0 0))"),
+                            arctern.ST_GeomFromText("POLYGON((0 0,0 8,8 8,8 0,0 0))"))
+    assert len(rst) == 1
+    assert rst[0] == 1
 
     rst = arctern.ST_Within(arctern.ST_GeomFromText("POLYGON((0 0,0 8,8 8,8 0,0 0))")[0],
                             arctern.ST_GeomFromText("POLYGON((0 0,0 8,8 8,8 0,0 0))")[0])
@@ -600,3 +613,43 @@ def test_ST_Envelope_Aggr():
     data = pandas.Series([p1, p2])
     rst = arctern.ST_AsText(arctern.ST_Envelope_Aggr(arctern.ST_GeomFromText(data)))
     assert rst[0] == "POLYGON ((0 0,0 4,7 4,7 0,0 0))"
+
+
+# Test whether arctern _wrapper_func can process list-like data,
+# include `list`, `set`, `numpy.ndarray`, `pandas.Series`
+class TestListLikeParam:
+    def test_list(self):
+        p1 = "POLYGON ((0 0,4 0,4 4,0 4,0 0))"
+        p2 = "POLYGON ((5 1,7 1,7 2,5 2,5 1))"
+        data = [p1, p2]
+        rst = arctern.ST_AsText(arctern.ST_Envelope_Aggr(arctern.ST_GeomFromText(data)))
+        assert rst[0] == "POLYGON ((0 0,0 4,7 4,7 0,0 0))"
+
+    def test_set(self):
+        p1 = "POLYGON ((0 0,4 0,4 4,0 4,0 0))"
+        p2 = "POLYGON ((5 1,7 1,7 2,5 2,5 1))"
+        data = {p1, p2}
+        rst = arctern.ST_AsText(arctern.ST_Envelope_Aggr(arctern.ST_GeomFromText(data)))
+        assert rst[0] == "POLYGON ((0 0,0 4,7 4,7 0,0 0))"
+
+    def test_tuple(self):
+        p1 = "POLYGON ((0 0,4 0,4 4,0 4,0 0))"
+        p2 = "POLYGON ((5 1,7 1,7 2,5 2,5 1))"
+        data = (p1, p2)
+        rst = arctern.ST_AsText(arctern.ST_Envelope_Aggr(arctern.ST_GeomFromText(data)))
+        assert rst[0] == "POLYGON ((0 0,0 4,7 4,7 0,0 0))"
+
+    def test_ndarray(self):
+        p1 = "POLYGON ((0 0,4 0,4 4,0 4,0 0))"
+        p2 = "POLYGON ((5 1,7 1,7 2,5 2,5 1))"
+        import numpy as np
+        data = np.array([p1, p2])
+        rst = arctern.ST_AsText(arctern.ST_Envelope_Aggr(arctern.ST_GeomFromText(data)))
+        assert rst[0] == "POLYGON ((0 0,0 4,7 4,7 0,0 0))"
+
+    def test_series(self):
+        p1 = "POLYGON ((0 0,4 0,4 4,0 4,0 0))"
+        p2 = "POLYGON ((5 1,7 1,7 2,5 2,5 1))"
+        data = pandas.Series([p1, p2])
+        rst = arctern.ST_AsText(arctern.ST_Envelope_Aggr(arctern.ST_GeomFromText(data)))
+        assert rst[0] == "POLYGON ((0 0,0 4,7 4,7 0,0 0))"

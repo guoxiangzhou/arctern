@@ -18,6 +18,7 @@ include_directories(${ARCTERN_THIRDPARTY_SRC})
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 set(render_src
+        render/2d/fishnet_map/fishnet_map.cpp
         render/2d/scatter_plot/pointmap.cpp
         render/2d/scatter_plot/weighted_pointmap.cpp
         render/2d/choropleth_map/choropleth_map.cpp
@@ -25,6 +26,9 @@ set(render_src
         render/2d/heatmap/heatmap.cpp
         render/2d/heatmap/set_color.cpp
         render/2d/icon/icon_viz.cpp
+        render/utils/vega/vega_fishnet_map/vega_fishnet_map.cpp
+        render/utils/render_utils.cpp
+        render/utils/agg/agg_handler.cpp
         render/utils/vega/vega_scatter_plot/vega_pointmap.cpp
         render/utils/vega/vega_scatter_plot/vega_weighted_pointmap.cpp
         render/utils/vega/vega_choropleth_map/vega_choropleth_map.cpp
@@ -63,9 +67,13 @@ set(cuda_gis_src
         gis/cuda/conversion/arrow_encode.cpp
         gis/cuda/common/gis_definitions.cpp
         gis/cuda/common/gis_definitions.cu
-        gis/cuda/tools/bounding_box.cu
         gis/cuda/functor/st_distance.cu
         gis/cuda/functor/st_within.cu
+        gis/cuda/functor/st_intersects.cu
+        gis/cuda/functor/st_crosses.cu
+        gis/cuda/functor/st_overlaps.cu
+        gis/cuda/functor/st_touches.cu
+        gis/cuda/functor/st_equals.cu
         gis/cuda/functor/st_length.cu
         gis/cuda/functor/st_area.cu
         gis/cuda/functor/st_envelope.cu

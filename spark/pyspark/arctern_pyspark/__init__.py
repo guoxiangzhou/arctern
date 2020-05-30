@@ -16,3 +16,16 @@ from .register import register_funcs
 from .render_func import *
 from .gis_func import *
 from .plot import plot
+
+def version(verbose=False):
+    """
+    Return the information of arctern_pyspark version.
+
+    :type verbose: bool
+    :param verbose: whether to get other information besides version
+
+    :rtype: str
+    :return: Information of arctern_pyspark version.
+    """
+    import arctern
+    return arctern.version(verbose)

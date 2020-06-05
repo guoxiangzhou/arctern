@@ -84,7 +84,9 @@ def from_wkb(data):
     if not isinstance(getattr(data, "dtype", None), GeoDtype) and len(data) != 0:
         from pandas.api.types import infer_dtype
         inferred = infer_dtype(data, skipna=True)
-        if inferred not in ("bytes", "empty"):
+        if inferred in ("bytes", "empty"):
+            pass
+        else:
             raise ValueError("'data' must be bytes type array or list.")
     if not isinstance(data, np.ndarray):
         array = np.empty(len(data), dtype=object)
@@ -115,7 +117,7 @@ class GeoArray(ExtensionArray):
     _dtype = GeoDtype()
 
     def __init__(self, data):
-        if not isinstance(data, np.ndarray):
+        if not isinstance(data, (np.ndarray, GeoArray)):
             raise TypeError(
                 "'data' should be array of wkb formed bytes. Use from_wkt to construct a GeoArray.")
         if not data.ndim == 1:
@@ -253,6 +255,10 @@ class GeoArray(ExtensionArray):
             # for pandas >= 1.0, validate and convert IntegerArray/BooleanArray
             # keys to numpy array, pass-through non-array-like indexers
             key = pd.api.indexers.check_array_indexer(self, key)
+
+        if isinstance(key, np.ndarray) and key.dtype == bool:
+            if not key.any():
+                return
 
         scalar_key = pd.api.types.is_scalar(key)
         scalar_value = pd.api.types.is_scalar(value)
